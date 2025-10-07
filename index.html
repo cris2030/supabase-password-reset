@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Restablecer Contraseña</title>
+    <title>Transerco | Confirmación / Restablecer Contraseña</title>
     <style>
-        /* Estilos base */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(to right, #e0f7fa, #b2ebf2);
@@ -15,20 +14,23 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
+            padding: 1rem;
         }
 
         h1 {
             color: #0077b6;
             margin-bottom: 1rem;
+            text-align: center;
         }
 
-        #form {
+        #form, #welcome {
             background-color: white;
             padding: 2rem;
             border-radius: 12px;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
             max-width: 400px;
             width: 100%;
+            display: none;
         }
 
         label {
@@ -74,6 +76,10 @@
         .success {
             color: #2e7d32;
         }
+
+        .hidden {
+            display: none;
+        }
     </style>
 
     <script type="module">
@@ -87,11 +93,18 @@
         window.addEventListener('load', async () => {
             const hash = window.location.hash
             const params = new URLSearchParams(hash.substring(1))
-
             const accessToken = params.get('access_token')
             const refreshToken = params.get('refresh_token')
+            const type = params.get('type')
 
             const statusEl = document.getElementById('status')
+            const form = document.getElementById('form')
+            const welcome = document.getElementById('welcome')
+
+            if (!type) {
+                statusEl.textContent = 'No se pudo determinar el tipo de acción.'
+                return
+            }
 
             if (!accessToken || !refreshToken) {
                 statusEl.textContent = 'Token no válido o incompleto.'
@@ -108,43 +121,61 @@
                 return
             }
 
-            document.getElementById('form').style.display = 'block'
+            // Mostrar el contenido correcto según tipo
+            if (type === 'recovery') {
+                // Mostrar formulario de restablecimiento
+                form.style.display = 'block'
 
-            document.getElementById('reset-form').addEventListener('submit', async (e) => {
-                e.preventDefault()
+                document.getElementById('reset-form').addEventListener('submit', async (e) => {
+                    e.preventDefault()
 
-                const newPassword = document.getElementById('new-password').value
+                    const newPassword = document.getElementById('new-password').value
 
-                // Validación: mínimo 6 caracteres
-                if (newPassword.length < 6) {
-                    statusEl.textContent = 'La contraseña debe tener al menos 6 caracteres.'
-                    return
-                }
+                    if (newPassword.length < 6) {
+                        statusEl.textContent = 'La contraseña debe tener al menos 6 caracteres.'
+                        return
+                    }
 
-                const { error: updateError } = await supabase.auth.updateUser({
-                    password: newPassword
+                    const { error: updateError } = await supabase.auth.updateUser({
+                        password: newPassword
+                    })
+
+                    if (updateError) {
+                        statusEl.textContent = 'Error actualizando la contraseña.'
+                    } else {
+                        statusEl.textContent = '✅ Contraseña actualizada con éxito. Ya puedes cerrar esta página.'
+                        statusEl.classList.add('success')
+                        form.style.display = 'none'
+                    }
                 })
 
-                if (updateError) {
-                    statusEl.textContent = 'Error actualizando la contraseña.'
-                } else {
-                    statusEl.textContent = '✅ Contraseña actualizada con éxito. Ya puedes cerrar esta página.'
-                    statusEl.classList.add('success')
-                    document.getElementById('form').style.display = 'none'
-                }
-            })
+            } else if (type === 'signup') {
+                // Mostrar mensaje de bienvenida
+                welcome.style.display = 'block'
+                statusEl.classList.add('success')
+                statusEl.textContent = '✅ ¡Gracias por confirmar tu correo! Ya puedes ingresar a la aplicación de Transerco.'
+            } else {
+                statusEl.textContent = 'Tipo de acción desconocido.'
+            }
         })
     </script>
 </head>
 <body>
-    <h1>Restablecer Contraseña</h1>
+    <h1>Transerco</h1>
 
-    <div id="form" style="display: none;">
+    <!-- Formulario para reset -->
+    <div id="form">
         <form id="reset-form">
             <label for="new-password">Nueva contraseña</label>
             <input type="password" id="new-password" required placeholder="Escribe tu nueva contraseña" />
             <button type="submit">Actualizar contraseña</button>
         </form>
+    </div>
+
+    <!-- Mensaje para confirmación -->
+    <div id="welcome">
+        <p>¡Tu cuenta ha sido confirmada exitosamente! 🎉</p>
+        <p>Ya puedes cerrar esta página e ingresar a la aplicación de <strong>Transerco</strong>.</p>
     </div>
 
     <p id="status">Cargando...</p>
