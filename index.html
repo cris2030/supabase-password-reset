@@ -76,12 +76,7 @@
         .success {
             color: #2e7d32;
         }
-
-        .hidden {
-            display: none;
-        }
     </style>
-
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
@@ -91,11 +86,8 @@
         )
 
         window.addEventListener('load', async () => {
-
             const params = new URLSearchParams(window.location.hash.substring(1))
             const type = params.get('type')
-            const access_token = params.get('access_token')
-            const refresh_token = params.get('refresh_token')
 
             const statusEl = document.getElementById('status')
             const form = document.getElementById('form')
@@ -106,24 +98,18 @@
                 return
             }
 
-            if (!access_token || !refresh_token) {
-                statusEl.textContent = 'Token inválido.'
+            if (type === 'signup') {
+                // Mostrar mensaje de confirmación de correo
+                welcome.style.display = 'block'
+                statusEl.textContent = 'Correo confirmado con éxito. ¡Ya puedes iniciar sesión!'
+                statusEl.classList.add('success')
                 return
             }
 
-            // ---- NUEVO MÉTODO PARA INICIAR SESIÓN ----
-            const { data, error } = await supabase.auth.exchangeCodeForSession(access_token)
-
-            // Si falla, intentar sesión tradicional (fallback)
-            if (error) {
-                await supabase.auth.setSession({
-                    access_token,
-                    refresh_token
-                })
-            }
-
             if (type === 'recovery') {
+                // Mostrar formulario de restablecimiento
                 form.style.display = 'block'
+                statusEl.textContent = ''
 
                 document.getElementById('reset-form').addEventListener('submit', async (e) => {
                     e.preventDefault()
@@ -134,25 +120,30 @@
                         return
                     }
 
-                    const { error: updateError } = await supabase.auth.updateUser({
-                        password: newPassword
-                    })
+                    statusEl.textContent = 'Actualizando contraseña...'
 
-                    if (updateError) {
-                        statusEl.textContent = 'Error actualizando la contraseña.'
-                    } else {
-                        statusEl.textContent = 'Contraseña actualizada correctamente.'
-                        statusEl.classList.add('success')
-                        form.style.display = 'none'
+                    try {
+                        // ⚠️ IMPORTANTE: este método requiere que el usuario tenga sesión activa
+                        // Si no tiene sesión, debes hacer la recuperación a través de un backend seguro
+                        const { error } = await supabase.auth.updateUser({ password: newPassword })
+
+                        if (error) {
+                            statusEl.textContent = 'No se pudo actualizar la contraseña. Por favor inicia sesión primero.'
+                        } else {
+                            statusEl.textContent = '✅ Contraseña actualizada correctamente.'
+                            statusEl.classList.add('success')
+                            form.style.display = 'none'
+                        }
+                    } catch (err) {
+                        statusEl.textContent = 'Ocurrió un error inesperado.'
+                        console.error(err)
                     }
                 })
+                return
             }
 
-            if (type === 'signup') {
-                welcome.style.display = 'block'
-                statusEl.textContent = 'Correo confirmado con éxito.'
-                statusEl.classList.add('success')
-            }
+            // Tipo desconocido
+            statusEl.textContent = 'Tipo de acción desconocido.'
         })
     </script>
 </head>
