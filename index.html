@@ -91,85 +91,69 @@
         )
 
         window.addEventListener('load', async () => {
-            const hash = window.location.hash;
-            const search = window.location.search;
 
-            const hashParams = new URLSearchParams(hash.substring(1));
-            const searchParams = new URLSearchParams(search);
+            const params = new URLSearchParams(window.location.hash.substring(1))
+            const type = params.get('type')
+            const access_token = params.get('access_token')
+            const refresh_token = params.get('refresh_token')
 
-            const type = hashParams.get("type") || searchParams.get("type");
-
-            const accessToken = hashParams.get("access_token");
-            const refreshToken = hashParams.get("refresh_token");
-            const code = searchParams.get("code"); // Nuevo método Supabase
-
-            const statusEl = document.getElementById('status');
-            const form = document.getElementById('form');
-            const welcome = document.getElementById('welcome');
+            const statusEl = document.getElementById('status')
+            const form = document.getElementById('form')
+            const welcome = document.getElementById('welcome')
 
             if (!type) {
-                statusEl.textContent = 'No se pudo determinar el tipo de acción.';
-                return;
+                statusEl.textContent = 'No se pudo determinar la acción.'
+                return
             }
 
-            let sessionError = null;
-
-            if (code) {
-                // Nuevo método de Supabase
-                const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-                sessionError = error;
-            } else if (accessToken && refreshToken) {
-                // Método legado
-                const { error } = await supabase.auth.setSession({
-                    access_token: accessToken,
-                    refresh_token: refreshToken
-                });
-                sessionError = error;
-            } else {
-                statusEl.textContent = 'Token no válido o incompleto.';
-                return;
+            if (!access_token || !refresh_token) {
+                statusEl.textContent = 'Token inválido.'
+                return
             }
 
-            if (sessionError) {
-                statusEl.textContent = 'Error iniciando sesión con el token.';
-                return;
+            // ---- NUEVO MÉTODO PARA INICIAR SESIÓN ----
+            const { data, error } = await supabase.auth.exchangeCodeForSession(access_token)
+
+            // Si falla, intentar sesión tradicional (fallback)
+            if (error) {
+                await supabase.auth.setSession({
+                    access_token,
+                    refresh_token
+                })
             }
 
-            // Mostrar contenido según tipo
             if (type === 'recovery') {
-                form.style.display = 'block';
+                form.style.display = 'block'
 
                 document.getElementById('reset-form').addEventListener('submit', async (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
 
-                    const newPassword = document.getElementById('new-password').value;
-
+                    const newPassword = document.getElementById('new-password').value
                     if (newPassword.length < 6) {
-                        statusEl.textContent = 'La contraseña debe tener al menos 6 caracteres.';
-                        return;
+                        statusEl.textContent = 'La contraseña debe tener al menos 6 caracteres.'
+                        return
                     }
 
-                    const { error } = await supabase.auth.updateUser({
+                    const { error: updateError } = await supabase.auth.updateUser({
                         password: newPassword
-                    });
+                    })
 
-                    if (error) {
-                        statusEl.textContent = 'Error actualizando la contraseña.';
+                    if (updateError) {
+                        statusEl.textContent = 'Error actualizando la contraseña.'
                     } else {
-                        statusEl.textContent = '✅ Contraseña actualizada. Ya puedes cerrar esta ventana.';
-                        statusEl.classList.add('success');
-                        form.style.display = 'none';
+                        statusEl.textContent = 'Contraseña actualizada correctamente.'
+                        statusEl.classList.add('success')
+                        form.style.display = 'none'
                     }
-                });
-
-            } else if (type === 'signup') {
-                welcome.style.display = 'block';
-                statusEl.classList.add('success');
-                statusEl.textContent = '¡Correo confirmado con éxito!';
-            } else {
-                statusEl.textContent = 'Tipo de acción desconocido.';
+                })
             }
-        });
+
+            if (type === 'signup') {
+                welcome.style.display = 'block'
+                statusEl.textContent = 'Correo confirmado con éxito.'
+                statusEl.classList.add('success')
+            }
+        })
     </script>
 </head>
 <body>
