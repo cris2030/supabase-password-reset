@@ -91,73 +91,85 @@
         )
 
         window.addEventListener('load', async () => {
-            const hash = window.location.hash
-            const params = new URLSearchParams(hash.substring(1))
-            const accessToken = params.get('access_token')
-            const refreshToken = params.get('refresh_token')
-            const type = params.get('type')
+            const hash = window.location.hash;
+            const search = window.location.search;
 
-            const statusEl = document.getElementById('status')
-            const form = document.getElementById('form')
-            const welcome = document.getElementById('welcome')
+            const hashParams = new URLSearchParams(hash.substring(1));
+            const searchParams = new URLSearchParams(search);
+
+            const type = hashParams.get("type") || searchParams.get("type");
+
+            const accessToken = hashParams.get("access_token");
+            const refreshToken = hashParams.get("refresh_token");
+            const code = searchParams.get("code"); // Nuevo método Supabase
+
+            const statusEl = document.getElementById('status');
+            const form = document.getElementById('form');
+            const welcome = document.getElementById('welcome');
 
             if (!type) {
-                statusEl.textContent = 'No se pudo determinar el tipo de acción.'
-                return
+                statusEl.textContent = 'No se pudo determinar el tipo de acción.';
+                return;
             }
 
-            if (!accessToken || !refreshToken) {
-                statusEl.textContent = 'Token no válido o incompleto.'
-                return
-            }
+            let sessionError = null;
 
-            const { error: sessionError } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
-            })
+            if (code) {
+                // Nuevo método de Supabase
+                const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+                sessionError = error;
+            } else if (accessToken && refreshToken) {
+                // Método legado
+                const { error } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                });
+                sessionError = error;
+            } else {
+                statusEl.textContent = 'Token no válido o incompleto.';
+                return;
+            }
 
             if (sessionError) {
-                statusEl.textContent = 'Error iniciando sesión con el token.'
-                return
+                statusEl.textContent = 'Error iniciando sesión con el token.';
+                return;
             }
 
-            // Mostrar el contenido correcto según tipo
+            // Mostrar contenido según tipo
             if (type === 'recovery') {
-                // Mostrar formulario de restablecimiento
-                form.style.display = 'block'
+                form.style.display = 'block';
 
                 document.getElementById('reset-form').addEventListener('submit', async (e) => {
-                    e.preventDefault()
+                    e.preventDefault();
 
-                    const newPassword = document.getElementById('new-password').value
+                    const newPassword = document.getElementById('new-password').value;
 
                     if (newPassword.length < 6) {
-                        statusEl.textContent = 'La contraseña debe tener al menos 6 caracteres.'
-                        return
+                        statusEl.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+                        return;
                     }
 
-                    const { error: updateError } = await supabase.auth.updateUser({
+                    const { error } = await supabase.auth.updateUser({
                         password: newPassword
-                    })
+                    });
 
-                    if (updateError) {
-                        statusEl.textContent = 'Error actualizando la contraseña.'
+                    if (error) {
+                        statusEl.textContent = 'Error actualizando la contraseña.';
                     } else {
-                        statusEl.textContent = '✅ Contraseña actualizada con éxito. Ya puedes cerrar esta página.'
-                        statusEl.classList.add('success')
-                        form.style.display = 'none'
+                        statusEl.textContent = '✅ Contraseña actualizada. Ya puedes cerrar esta ventana.';
+                        statusEl.classList.add('success');
+                        form.style.display = 'none';
                     }
-                })
+                });
 
             } else if (type === 'signup') {
-                // Mostrar mensaje de bienvenida
-                welcome.style.display = 'block'
-                statusEl.classList.add('success')
-                statusEl.textContent = '✅ ¡Gracias por confirmar tu correo! Ya puedes ingresar a la aplicación de Transerco.'
+                welcome.style.display = 'block';
+                statusEl.classList.add('success');
+                statusEl.textContent = '¡Correo confirmado con éxito!';
             } else {
-                statusEl.textContent = 'Tipo de acción desconocido.'
+                statusEl.textContent = 'Tipo de acción desconocido.';
             }
-        })
+        });
     </script>
 </head>
 <body>
