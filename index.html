@@ -88,6 +88,8 @@
         window.addEventListener('load', async () => {
             const params = new URLSearchParams(window.location.hash.substring(1))
             const type = params.get('type')
+            const access_token = params.get('access_token')
+            const refresh_token = params.get('refresh_token')
 
             const statusEl = document.getElementById('status')
             const form = document.getElementById('form')
@@ -98,16 +100,38 @@
                 return
             }
 
+            // ---------------------------
+            // MANEJO DE SIGNUP
+            // ---------------------------
             if (type === 'signup') {
-                // Mostrar mensaje de confirmación de correo
                 welcome.style.display = 'block'
                 statusEl.textContent = 'Correo confirmado con éxito. ¡Ya puedes iniciar sesión!'
                 statusEl.classList.add('success')
                 return
             }
 
+            // ---------------------------
+            // MANEJO DE RECOVERY (RESET)
+            // ---------------------------
             if (type === 'recovery') {
-                // Mostrar formulario de restablecimiento
+
+                if (!access_token || !refresh_token) {
+                    statusEl.textContent = 'No se recibieron los tokens necesarios para la recuperación.'
+                    return
+                }
+
+                // 🔥 Restaurar sesión TEMPORAL (obligatorio)
+                const { error: sessionError } = await supabase.auth.setSession({
+                    access_token,
+                    refresh_token
+                })
+
+                if (sessionError) {
+                    statusEl.textContent = 'No se pudo restaurar la sesión. Intentar nuevamente.'
+                    console.error(sessionError)
+                    return
+                }
+
                 form.style.display = 'block'
                 statusEl.textContent = ''
 
@@ -115,34 +139,31 @@
                     e.preventDefault()
 
                     const newPassword = document.getElementById('new-password').value
+
                     if (newPassword.length < 6) {
-                        statusEl.textContent = 'La contraseña debe tener al menos 6 caracteres.'
+                        statusEl.textContent = 'La contraseña debe tener mínimo 6 caracteres.'
                         return
                     }
 
                     statusEl.textContent = 'Actualizando contraseña...'
 
-                    try {
-                        // ⚠️ IMPORTANTE: este método requiere que el usuario tenga sesión activa
-                        // Si no tiene sesión, debes hacer la recuperación a través de un backend seguro
-                        const { error } = await supabase.auth.updateUser({ password: newPassword })
+                    const { error } = await supabase.auth.updateUser({
+                        password: newPassword
+                    })
 
-                        if (error) {
-                            statusEl.textContent = 'No se pudo actualizar la contraseña. Por favor inicia sesión primero.'
-                        } else {
-                            statusEl.textContent = '✅ Contraseña actualizada correctamente.'
-                            statusEl.classList.add('success')
-                            form.style.display = 'none'
-                        }
-                    } catch (err) {
-                        statusEl.textContent = 'Ocurrió un error inesperado.'
-                        console.error(err)
+                    if (error) {
+                        statusEl.textContent = 'Error al actualizar la contraseña.'
+                        return
                     }
+
+                    statusEl.textContent = '✅ Contraseña actualizada correctamente.'
+                    statusEl.classList.add('success')
+                    form.style.display = 'none'
                 })
+
                 return
             }
 
-            // Tipo desconocido
             statusEl.textContent = 'Tipo de acción desconocido.'
         })
     </script>
