@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Transerco | Confirmación / Restablecer Contraseña</title>
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -77,97 +78,95 @@
             color: #2e7d32;
         }
     </style>
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-        const supabase = createClient(
-            'https://malijhcucevviswcilxy.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hbGlqaGN1Y2V2dmlzd2NpbHh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MjUyODQsImV4cCI6MjA2MzUwMTI4NH0.sgJNBtbreFtwktKPuawCpjyHTwU2_SSZxojjTseme7Q'
-        )
-
+    <script>
         window.addEventListener('load', async () => {
-            const params = new URLSearchParams(window.location.hash.substring(1))
-            const type = params.get('type')
-            const access_token = params.get('access_token')
-            const refresh_token = params.get('refresh_token')
 
-            const statusEl = document.getElementById('status')
-            const form = document.getElementById('form')
-            const welcome = document.getElementById('welcome')
+            const params = new URLSearchParams(window.location.hash.substring(1));
+            const type = params.get('type');
+            const access_token = params.get('access_token');
+            const refresh_token = params.get('refresh_token');
+
+            const statusEl = document.getElementById('status');
+            const form = document.getElementById('form');
+            const welcome = document.getElementById('welcome');
 
             if (!type) {
-                statusEl.textContent = 'No se pudo determinar la acción.'
-                return
+                statusEl.textContent = 'No se pudo determinar la acción.';
+                return;
             }
 
-            // ---------------------------
-            // MANEJO DE SIGNUP
-            // ---------------------------
+            // --------------------------
+            // 1. Confirmación de correo
+            // --------------------------
             if (type === 'signup') {
-                welcome.style.display = 'block'
-                statusEl.textContent = 'Correo confirmado con éxito. ¡Ya puedes iniciar sesión!'
-                statusEl.classList.add('success')
-                return
+                welcome.style.display = 'block';
+                statusEl.textContent = 'Correo confirmado exitosamente.';
+                statusEl.classList.add('success');
+                return;
             }
 
-            // ---------------------------
-            // MANEJO DE RECOVERY (RESET)
-            // ---------------------------
+            // --------------------------
+            // 2. RECOVERY (RESET PASSWORD)
+            // --------------------------
             if (type === 'recovery') {
 
                 if (!access_token || !refresh_token) {
-                    statusEl.textContent = 'No se recibieron los tokens necesarios para la recuperación.'
-                    return
+                    statusEl.textContent = 'Tokens no válidos o incompletos.';
+                    return;
                 }
 
-                // 🔥 Restaurar sesión TEMPORAL (obligatorio)
-                const { error: sessionError } = await supabase.auth.setSession({
-                    access_token,
-                    refresh_token
-                })
-
-                if (sessionError) {
-                    statusEl.textContent = 'No se pudo restaurar la sesión. Intentar nuevamente.'
-                    console.error(sessionError)
-                    return
-                }
-
-                form.style.display = 'block'
-                statusEl.textContent = ''
+                // Mostrar formulario
+                form.style.display = 'block';
+                statusEl.textContent = '';
 
                 document.getElementById('reset-form').addEventListener('submit', async (e) => {
-                    e.preventDefault()
+                    e.preventDefault();
 
-                    const newPassword = document.getElementById('new-password').value
+                    const newPassword = document.getElementById('new-password').value;
 
                     if (newPassword.length < 6) {
-                        statusEl.textContent = 'La contraseña debe tener mínimo 6 caracteres.'
-                        return
+                        statusEl.textContent = 'La contraseña debe tener mínimo 6 caracteres.';
+                        return;
                     }
 
-                    statusEl.textContent = 'Actualizando contraseña...'
+                    statusEl.textContent = 'Actualizando contraseña...';
 
-                    const { error } = await supabase.auth.updateUser({
-                        password: newPassword
-                    })
+                    // --------------------------
+                    // 🚀 LLAMADA A TU BACKEND
+                    // --------------------------
+                    const response = await fetch('https://supabaseapi-xz64.onrender.com/api/auth/reset-password/confirm', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            accessToken: access_token,
+                            refreshToken: refresh_token,
+                            newPassword: newPassword
+                        })
+                    });
 
-                    if (error) {
-                        statusEl.textContent = 'Error al actualizar la contraseña.'
-                        return
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        statusEl.textContent = 'Error: ' + (result.message || 'No se pudo actualizar la contraseña.');
+                        return;
                     }
 
-                    statusEl.textContent = '✅ Contraseña actualizada correctamente.'
-                    statusEl.classList.add('success')
-                    form.style.display = 'none'
-                })
+                    statusEl.textContent = 'Contraseña actualizada correctamente.';
+                    statusEl.classList.add('success');
+                    form.style.display = 'none';
+                });
 
-                return
+                return;
             }
 
-            statusEl.textContent = 'Tipo de acción desconocido.'
-        })
+            statusEl.textContent = 'Acción desconocida.';
+        });
     </script>
 </head>
+
 <body>
     <h1>Transerco</h1>
 
@@ -180,10 +179,10 @@
         </form>
     </div>
 
-    <!-- Mensaje para confirmación -->
+    <!-- Mensaje para confirmación email -->
     <div id="welcome">
         <p>¡Tu cuenta ha sido confirmada exitosamente! 🎉</p>
-        <p>Ya puedes cerrar esta página e ingresar a la aplicación de <strong>Transerco</strong>.</p>
+        <p>Ya puedes cerrar esta página e ingresar a <strong>Transerco</strong>.</p>
     </div>
 
     <p id="status">Cargando...</p>
